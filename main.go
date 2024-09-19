@@ -8,12 +8,13 @@ import (
 	"strings"
 	"runtime/pprof"
 	"fmt"
-	"github.com/igrmk/treemap/v2"
+	"sort"
 )
 
 const filepath = "../1brc/measurements.txt"
 
 type TempData struct {
+	name string
 	min float64
 	max float64
 	total float64
@@ -35,13 +36,13 @@ func naive() {
 	startTime := time.Now()
 	file, err := os.Open(filepath)
 	if err != nil { panic(err) }
-	tr := treemap.New[string, TempData]()
-	readTempData(file, tr)
-	process(tr)
+	m := make(map[string]TempData, 1000)
+	readTempData(file, &m)
+	process(&m)
 	println("Duration: ", time.Since(startTime).Truncate(time.Second).String())
 }
 
-func readTempData(file *os.File, tr *treemap.TreeMap[string, TempData]) {
+func readTempData(file *os.File, m *map[string]TempData) {
 	count := 0
     scanner := bufio.NewScanner(file)
 	var name string
@@ -56,20 +57,21 @@ func readTempData(file *os.File, tr *treemap.TreeMap[string, TempData]) {
 		temp = parts[1]
 		f, _ = strconv.ParseFloat(temp, 64)
 
-		tempData, ok = tr.Get(name)
+		tempData, ok = (*m)[name]
 		if !ok {
-			tr.Set(name, TempData{
+			(*m)[name] = TempData{
+				name: name,
 				min: f,
 				max: f,
 				total: f,
 				count: 1,
-			})
+			}
 		} else {
 			if f < tempData.min { tempData.min = f	}
 			if f > tempData.max { tempData.max = f }
 			tempData.total += f
 			tempData.count++
-			tr.Set(name, tempData)
+			(*m)[name] = tempData
 		}
 
 		if count % 10000000 == 0 {
@@ -79,12 +81,15 @@ func readTempData(file *os.File, tr *treemap.TreeMap[string, TempData]) {
     }
 }
 
-func process(tr *treemap.TreeMap[string, TempData]) {
-	for it := tr.Iterator(); it.Valid(); it.Next() {
-		name := it.Key()
-		tempData := it.Value()
-		avgTemp := tempData.total / float64(tempData.count)
-		fmt.Printf("%s=%.1f/%.1f/%.1f\n", name, tempData.min, avgTemp, tempData.max)
+func process(m *map[string]TempData) {
+	var data []TempData
+	for _, v := range *m {
+		data = append(data, v)
+	}
+	sort.Slice(data, func(a, b int) bool { return data[a].name > data[b].name }) 
+	for _, i := range data {
+		avgTemp := i.total / float64(i.count)
+		fmt.Printf("%s=%.1f/%.1f/%.1f\n", i.name, i.min, avgTemp, i.max)
 	}
 }
 

@@ -19,6 +19,21 @@ type TempData struct {
     count int
 }
 
+func main() {
+    // Set up profiler
+    f, err := os.Create("cpu_profile.prof")
+    if err != nil {
+        panic("What I can't make a file now?")
+    }
+    pprof.StartCPUProfile(f)
+    defer pprof.StopCPUProfile()
+
+    // Run
+    startTime := time.Now()
+    attempt()
+	println(time.Since(startTime))
+}
+
 func parseTemp(s []byte) int {
     tenths := 0
     isNegative := s[0] == '-'
@@ -41,28 +56,12 @@ func parseTemp(s []byte) int {
     return tenths
 }
 
-func main() {
-    // Set up profiler
-    f, err := os.Create("cpu_profile.prof")
-    if err != nil {
-        panic("What I can't make a file now?")
-    }
-    pprof.StartCPUProfile(f)
-    defer pprof.StopCPUProfile()
-
-    // Run
-    startTime := time.Now()
-    attempt()
-    fmt.Println(time.Since(startTime))
-}
-
 func attempt() {
     file, err := os.Open(filepath)
-    if err != nil {
-        panic(err)
-    }
+    if err != nil { panic(err) }
     defer file.Close()
-    m := make(map[string]*TempData, 1000)
+
+	m := make(map[string]*TempData, 1000)
     readTempData(file, &m)
     process(&m)
 }
@@ -76,6 +75,22 @@ func split(s []byte) ([]byte, []byte) {
     return s, []byte{}
 }
 
+func binarySearch(arr []*TempData, target string) (*TempData, bool) {
+    left, right := 0, len(arr)-1
+	mid := 0
+    for left <= right {
+        mid = left + (right-left)/2
+        if arr[mid].name == target {
+            return arr[mid], true
+        } else if arr[mid].name < target {
+            left = mid + 1
+        } else {
+            right = mid - 1
+        }
+    }
+    return nil, false
+}
+
 func readTempData(file *os.File, m *map[string]*TempData) {
     count := 0
     scanner := bufio.NewScanner(file)
@@ -87,10 +102,9 @@ func readTempData(file *os.File, m *map[string]*TempData) {
     for scanner.Scan() {
         name, temp = split(scanner.Bytes())
         f = parseTemp(temp)
-
-        tempData, ok = (*m)[string(name)]
+		tempData, ok = (*m)[string(name)]
         if !ok {
-            (*m)[string(name)] = &TempData{
+			(*m)[string(name)] = &TempData{
                 name:  string(name),
                 min:   f,
                 max:   f,
@@ -98,12 +112,8 @@ func readTempData(file *os.File, m *map[string]*TempData) {
                 count: 1,
             }
         } else {
-            if f < tempData.min {
-                tempData.min = f
-            }
-            if f > tempData.max {
-                tempData.max = f
-            }
+            if f < tempData.min { tempData.min = f }
+            if f > tempData.max { tempData.max = f }
             tempData.total += f
             tempData.count++
         }
@@ -116,14 +126,15 @@ func readTempData(file *os.File, m *map[string]*TempData) {
 
 func process(m *map[string]*TempData) {
     startTime := time.Now()
-    var data []*TempData
-    for _, v := range *m {
-        data = append(data, v)
-    }
-    sort.Slice(data, func(a, b int) bool { return data[a].name < data[b].name })
-    for _, i := range data {
+	var tempDataSlice []TempData
+	for _, v := range *m {
+		tempDataSlice = append(tempDataSlice, *v)
+	}
+	sort.Slice(tempDataSlice, func(a, b int) bool { return tempDataSlice[a].name < tempDataSlice[b].name })
+    for _, i := range tempDataSlice {
         avgTemp := float64(i.total/i.count) / 10.0
         fmt.Printf("%s=%.1f/%.1f/%.1f\n", i.name, float64(i.min)/10.0, avgTemp, float64(i.max)/10.0)
     }
     fmt.Printf("process time: %v\n", time.Since(startTime))
 }
+

@@ -2,23 +2,39 @@ package main
 
 import (
 	"bufio"
-	"time"
-	"os"
-	"strconv"
-	"strings"
-	"runtime/pprof"
 	"fmt"
+	"os"
+	"runtime/pprof"
 	"sort"
+	"time"
 )
 
 const filepath = "../1brc/measurements.txt"
 
 type TempData struct {
 	name string
-	min float64
-	max float64
-	total float64
+	min int
+	max int
+	total int
 	count int
+}
+
+func parseTemp(s string) int {
+	tenths:=0
+	isNegative := s[0] == '-'
+	i:=0
+	if isNegative { i = 1 }
+	for ; i<len(s); i++ {
+		c := s[i]
+		if c == '.' { continue }
+		rawValue := int(c) - 48;
+		tenths *= 10;
+		tenths += rawValue;
+	}
+	if isNegative { 
+		return -tenths
+	}
+	return tenths
 }
 
 func main() {
@@ -29,37 +45,44 @@ func main() {
 	defer pprof.StopCPUProfile()
 
 	// Run
-	naive()
+	startTime := time.Now()
+	attempt()
+	println(time.Since(startTime))
 }
 
-func naive() {
-	startTime := time.Now()
+func attempt() {
 	file, err := os.Open(filepath)
 	if err != nil { panic(err) }
-	m := make(map[string]TempData, 1000)
+	defer file.Close()
+	m := make(map[string]*TempData, 1000)
 	readTempData(file, &m)
 	process(&m)
-	println("Duration: ", time.Since(startTime).Truncate(time.Second).String())
 }
 
-func readTempData(file *os.File, m *map[string]TempData) {
+func split(s string) (string, string) {
+	for i:=0; i<len(s); i++ {
+		if s[i] == ';' {
+			return s[:i], s[i+1:]
+		}
+	}
+	return s, "" 
+}
+
+func readTempData(file *os.File, m *map[string]*TempData) {
 	count := 0
     scanner := bufio.NewScanner(file)
+	var tempData *TempData
 	var name string
 	var temp string
-	var parts []string
-	var f float64
-	var tempData TempData
+	var f int
 	var ok bool
     for scanner.Scan() {
-		parts = strings.Split(scanner.Text(), ";")
-		name = parts[0]
-		temp = parts[1]
-		f, _ = strconv.ParseFloat(temp, 64)
+		name, temp = split(scanner.Text())
+		f = parseTemp(temp)
 
 		tempData, ok = (*m)[name]
 		if !ok {
-			(*m)[name] = TempData{
+			(*m)[name] = &TempData{
 				name: name,
 				min: f,
 				max: f,
@@ -67,13 +90,11 @@ func readTempData(file *os.File, m *map[string]TempData) {
 				count: 1,
 			}
 		} else {
-			if f < tempData.min { tempData.min = f	}
+			if f < tempData.min { tempData.min = f }
 			if f > tempData.max { tempData.max = f }
-			tempData.total += f
+			tempData.total+=f
 			tempData.count++
-			(*m)[name] = tempData
 		}
-
 		if count % 10000000 == 0 {
 			println(count)
 		}
@@ -81,15 +102,16 @@ func readTempData(file *os.File, m *map[string]TempData) {
     }
 }
 
-func process(m *map[string]TempData) {
-	var data []TempData
+func process(m *map[string]*TempData) {
+	startTime := time.Now()
+	var data []*TempData
 	for _, v := range *m {
 		data = append(data, v)
 	}
-	sort.Slice(data, func(a, b int) bool { return data[a].name > data[b].name }) 
+	sort.Slice(data, func(a, b int) bool { return data[a].name < data[b].name }) 
 	for _, i := range data {
-		avgTemp := i.total / float64(i.count)
-		fmt.Printf("%s=%.1f/%.1f/%.1f\n", i.name, i.min, avgTemp, i.max)
+		avgTemp := float64(i.total / i.count)/10.0
+		fmt.Printf("%s=%.1f/%.1f/%.1f\n", i.name, float64(i.min)/10.0, avgTemp, float64(i.max)/10.0)
 	}
+	println("process time: ", time.Since(startTime))
 }
-

@@ -34,28 +34,6 @@ func main() {
 	println(time.Since(startTime))
 }
 
-func parseTemp(s []byte) int {
-    tenths := 0
-    isNegative := s[0] == '-'
-    i := 0
-    if isNegative {
-        i = 1
-    }
-    for ; i < len(s); i++ {
-        c := s[i]
-        if c == '.' {
-            continue
-        }
-        rawValue := int(c) - 48
-        tenths *= 10
-        tenths += rawValue
-    }
-    if isNegative {
-        return -tenths
-    }
-    return tenths
-}
-
 func attempt() {
     file, err := os.Open(filepath)
     if err != nil { panic(err) }
@@ -66,6 +44,22 @@ func attempt() {
     process(&m)
 }
 
+func parseTemp(s []byte) int {
+    tenths := 0
+    isNegative := s[0] == '-'
+    i := 0
+    if isNegative { i = 1 }
+    for ; i < len(s); i++ {
+        c := s[i]
+        if c == '.' { continue }
+        rawValue := int(c) - 48
+        tenths *= 10
+        tenths += rawValue
+    }
+    if isNegative { return -tenths }
+    return tenths
+}
+
 func split(s []byte) ([]byte, []byte) {
     for i := 0; i < len(s); i++ {
         if s[i] == ';' {
@@ -73,22 +67,6 @@ func split(s []byte) ([]byte, []byte) {
         }
     }
     return s, []byte{}
-}
-
-func binarySearch(arr []*TempData, target string) (*TempData, bool) {
-    left, right := 0, len(arr)-1
-	mid := 0
-    for left <= right {
-        mid = left + (right-left)/2
-        if arr[mid].name == target {
-            return arr[mid], true
-        } else if arr[mid].name < target {
-            left = mid + 1
-        } else {
-            right = mid - 1
-        }
-    }
-    return nil, false
 }
 
 func readTempData(file *os.File, m *map[string]*TempData) {

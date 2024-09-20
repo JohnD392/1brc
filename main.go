@@ -130,7 +130,7 @@ func attempt() {
 		panic(err)
 	}
 	defer file.Close()
-	hm := NewHashMap(1000)
+	hm := NewHashMap(10000)
 	readTempData(file, hm)
 	process(hm)
 }

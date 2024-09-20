@@ -64,71 +64,42 @@ func split(s []byte) ([]byte, []byte) {
 	return s, []byte{}
 }
 
-func readDataFromFile(offset int) ([]byte, int) {
-	reader, err := mmap.Open(filepath)
-	if err != nil {
-		panic(err)
-	}
-	defer reader.Close()
-
-	bufferSize := 1 << 24 //16M
-
-	buf := make([]byte, bufferSize)
-	_, err = reader.ReadAt(buf, int64(offset))
-	if err == io.EOF {
-		// if we hit the end of the file, return the remaining bytes, and signal completion with offset=-1
-		return buf, -1
-	}
-
-	bufferOffset := 0
-	for bufferOffset = bufferSize - 1; bufferOffset >= 0; bufferOffset-- {
-		b := buf[bufferOffset]
-		if b == '\n' {
-			offset += bufferOffset
-			break
-		}
-	}
-	return buf[:bufferOffset], offset
-}
-
 func readTempData(file *os.File, hm *HashMap) {
 	count := 0
 	scanner := bufio.NewScanner(file)
-	var tempData *TempData
-	var name []byte
-	var temp []byte
-	var f int
-	var ok bool
+	scanner.Split(bufio.ScanLines)
 	for scanner.Scan() {
-		name, temp = split(scanner.Bytes())
-		f = parseTemp(temp)
-
-		tempData, ok = hm.Get(name)
-		if !ok {
-			nameCopy := make([]byte, len(name))
-			copy(nameCopy, name)
-
-			hm.Set(nameCopy, &TempData{
-				name:  nameCopy,
-				min:   f,
-				max:   f,
-				total: f,
-				count: 1,
-			})
-		} else {
-			if f < tempData.min {
-				tempData.min = f
-			}
-			if f > tempData.max {
-				tempData.max = f
-			}
-			tempData.total += f
-			tempData.count++
-		}
+		processLine(scanner.Bytes(), hm)
+		count += 1
 		if count%10000000 == 0 {
 			fmt.Printf("read: %d lines, size: %d\n", count, hm.Size())
 		}
-		count += 1
+	}
+}
+
+func processLine(line []byte, hm *HashMap) {
+	name, temp := split(line)
+	f := parseTemp(temp)
+	tempData, ok := hm.Get(name)
+	if !ok {
+		nameCopy := make([]byte, len(name))
+		copy(nameCopy, name)
+		hm.Set(nameCopy, &TempData{
+			name:  nameCopy,
+			min:   f,
+			max:   f,
+			total: f,
+			count: 1,
+		})
+	} else {
+		if f < tempData.min {
+			tempData.min = f
+		}
+		if f > tempData.max {
+			tempData.max = f
+		}
+		tempData.total += f
+		tempData.count++
 	}
 }
 

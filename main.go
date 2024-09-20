@@ -3,36 +3,39 @@ package main
 import (
 	"bufio"
 	"bytes"
-	"golang.org/x/exp/mmap"
 	"fmt"
 	"io"
 	"os"
 	"runtime/pprof"
 	"sort"
 	"time"
+
+	"golang.org/x/exp/mmap"
 )
 
 const filepath = "../1brc/measurements.txt"
 
 func main() {
 	f, err := os.Create("cpu_profile.prof")
-	if err != nil { panic("What I can't make a file now?") }
+	if err != nil {
+		panic("What I can't make a file now?")
+	}
 	pprof.StartCPUProfile(f)
 	defer pprof.StopCPUProfile()
 
 	startTime := time.Now()
-//	attempt()
-//	offset := 0
-//	var buf []byte
-//	for {
-//		buf, offset = readDataFromFile(offset)
-//		if offset == -1 {
-//			break
-//		}
-//		println("Offset:", offset)
-//		println(string(buf[len(buf)-50:]))
-//		println("---------------------------------------------------------------------------")
-//	}
+	//	attempt()
+	//	offset := 0
+	//	var buf []byte
+	//	for {
+	//		buf, offset = readDataFromFile(offset)
+	//		if offset == -1 {
+	//			break
+	//		}
+	//		println("Offset:", offset)
+	//		println(string(buf[len(buf)-50:]))
+	//		println("---------------------------------------------------------------------------")
+	//	}
 	file, _ := os.Open(filepath)
 	defer file.Close()
 	scanner := bufio.NewScanner(file)
@@ -81,12 +84,14 @@ func split(s []byte) ([]byte, []byte) {
 	return s, []byte{}
 }
 
-func readDataFromFile(offset int) ([]byte, int){
+func readDataFromFile(offset int) ([]byte, int) {
 	reader, err := mmap.Open(filepath)
-	if err != nil { panic(err) }
- 	defer reader.Close()
+	if err != nil {
+		panic(err)
+	}
+	defer reader.Close()
 
-	bufferSize := 1<<24 //16M
+	bufferSize := 1 << 24 //16M
 
 	buf := make([]byte, bufferSize)
 	_, err = reader.ReadAt(buf, int64(offset))
@@ -95,11 +100,11 @@ func readDataFromFile(offset int) ([]byte, int){
 		return buf, -1
 	}
 
-	bufferOffset:=0
-	for bufferOffset=bufferSize-1; bufferOffset>=0; bufferOffset-- {
+	bufferOffset := 0
+	for bufferOffset = bufferSize - 1; bufferOffset >= 0; bufferOffset-- {
 		b := buf[bufferOffset]
 		if b == '\n' {
-			offset+=bufferOffset
+			offset += bufferOffset
 			break
 		}
 	}
@@ -173,4 +178,3 @@ func attempt() {
 	readTempData(file, hm)
 	process(hm)
 }
-

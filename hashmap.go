@@ -2,8 +2,8 @@ package main
 
 import (
 	"bytes"
+	"encoding/binary"
 	"fmt"
-	"hash/fnv"
 )
 
 // KeyValue represents a key-value pair in the hashmap
@@ -30,9 +30,13 @@ func NewHashMap(bucketSize int) *HashMap {
 
 // hash generates a hash for the given key
 func (hm *HashMap) hash(key []byte) int {
-	h := fnv.New32a()
-	h.Write(key)
-	return int(h.Sum32()) % hm.bucketSize
+	if len(key) < 4 {
+		return int(binary.BigEndian.Uint16(key) % uint16(hm.bucketSize))
+	}
+	if len(key) < 8 {
+		return int(binary.BigEndian.Uint32(key) % uint32(hm.bucketSize))
+	}
+	return int(binary.BigEndian.Uint64(key[:8]) % uint64(hm.bucketSize))
 }
 
 // Set adds a key-value pair to the hashmap
@@ -104,4 +108,3 @@ func (hm *HashMap) Delete(key []byte) bool {
 func (hm *HashMap) Size() int {
 	return hm.size
 }
-

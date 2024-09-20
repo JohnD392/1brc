@@ -4,13 +4,10 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"io"
 	"os"
 	"runtime/pprof"
 	"sort"
 	"time"
-
-	"golang.org/x/exp/mmap"
 )
 
 const filepath = "../1brc/measurements.txt"
@@ -24,24 +21,7 @@ func main() {
 	defer pprof.StopCPUProfile()
 
 	startTime := time.Now()
-	//	attempt()
-	//	offset := 0
-	//	var buf []byte
-	//	for {
-	//		buf, offset = readDataFromFile(offset)
-	//		if offset == -1 {
-	//			break
-	//		}
-	//		println("Offset:", offset)
-	//		println(string(buf[len(buf)-50:]))
-	//		println("---------------------------------------------------------------------------")
-	//	}
-	file, _ := os.Open(filepath)
-	defer file.Close()
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		_ = scanner.Bytes()
-	}
+	attempt()
 	fmt.Printf("total time: %s\n", time.Since(startTime))
 }
 

@@ -112,10 +112,15 @@ func process(hm *HashMap) {
 		}
 	}
 	sort.Slice(data, func(a, b int) bool { return bytes.Compare(data[a].name, data[b].name) < 0 })
-	for _, i := range data {
-		avgTemp := float64(i.total/i.count) / 10.0
-		fmt.Printf("%s=%.1f/%.1f/%.1f\n", i.name, float64(i.min)/10.0, avgTemp, float64(i.max)/10.0)
+	fmt.Print("{")
+	for i, v := range data {
+		if i > 0 {
+			fmt.Print(", ")
+		}
+		avgTemp := float64(v.total/v.count) / 10.0
+		fmt.Printf("%s=%.1f/%.1f/%.1f", v.name, float64(v.min)/10.0, avgTemp, float64(v.max)/10.0)
 	}
+	fmt.Print("}")
 	fmt.Printf("process time: %s\n", time.Since(startTime))
 }
 

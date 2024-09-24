@@ -1,7 +1,7 @@
 package main
 
 import (
-	"bufio"
+	"io"
 	"bytes"
 	"fmt"
 	"os"
@@ -10,6 +10,7 @@ import (
 	"time"
 )
 
+//const filepath = "../1brc/short_measurements.txt"
 const filepath = "../1brc/measurements.txt"
 
 func main() {
@@ -64,18 +65,46 @@ func split(s []byte) ([]byte, []byte) {
 	return s, []byte{}
 }
 
-func readTempData(file *os.File, hm *HashMap) {
+func readTempDataReader(file *os.File, hm *HashMap) {
+	var offset int64
 	count := 0
-	scanner := bufio.NewScanner(file)
-	scanner.Split(bufio.ScanLines)
-	for scanner.Scan() {
-		processLine(scanner.Bytes(), hm)
-		count += 1
-		if count%10000000 == 0 {
-			fmt.Printf("read: %d lines, size: %d\n", count, hm.Size())
+	lastTime := time.Now()
+	for {
+		buffer := make([]byte, 1<<24)
+		_, err := file.ReadAt(buffer, offset)
+		lastNewlinePos := bytes.LastIndexByte(buffer, '\n')
+		chunk := buffer[0:lastNewlinePos+1]
+		offset += int64(lastNewlinePos+1)
+		for {
+			newlineIndex := bytes.IndexByte(chunk, '\n')
+			if newlineIndex == -1 { break }
+			processLine(chunk[0:newlineIndex], hm)
+			chunk = chunk[newlineIndex+1:]
+			if len(chunk) <= 1 { break }
+			count += 1
+			if count%10000000 == 0 {
+				pace := 100 * time.Since(lastTime) / 1000000000
+				fmt.Printf("Pace: %d, hm size: %d\n", pace, hm.Size()) 
+				lastTime = time.Now()
+			}
 		}
+		if err == io.EOF { break }
+		buffer = nil
 	}
 }
+
+//func readTempData(file *os.File, hm *HashMap) {
+//	count := 0
+//	scanner := bufio.NewScanner(file)
+//	scanner.Split(bufio.ScanLines)
+//	for scanner.Scan() {
+//		processLine(scanner.Bytes(), hm)
+//		count += 1
+//		if count%10000000 == 0 {
+//			fmt.Printf("read: %d lines, size: %d\n", count, hm.Size())
+//		}
+//	}
+//}
 
 func processLine(line []byte, hm *HashMap) {
 	name, temp := split(line)
@@ -126,11 +155,9 @@ func process(hm *HashMap) {
 
 func attempt() {
 	file, err := os.Open(filepath)
-	if err != nil {
-		panic(err)
-	}
+	if err != nil { panic(err) }
 	defer file.Close()
 	hm := NewHashMap(10000)
-	readTempData(file, hm)
+	readTempDataReader(file, hm)
 	process(hm)
 }

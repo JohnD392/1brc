@@ -7,6 +7,7 @@ import (
 	"os"
 	"runtime/pprof"
 	"sort"
+	"sync"
 	"time"
 )
 
@@ -62,38 +63,41 @@ func split(s []byte) ([]byte, []byte) {
 	return s[:i], s[i+1:]
 }
 
-func readTempDataReader(file *os.File, hm *HashMap) {
+func readTempDataReader(file *os.File) *[]*HashMap {
 	var offset int64
-	count := 0
-	lastTime := time.Now()
+	var hms []*HashMap
+	var wg sync.WaitGroup
 	for {
 		buffer := make([]byte, 1<<24)
 		_, err := file.ReadAt(buffer, offset)
 		lastNewlinePos := bytes.LastIndexByte(buffer, '\n')
 		chunk := buffer[0 : lastNewlinePos+1]
 		offset += int64(lastNewlinePos + 1)
-		for {
-			newlineIndex := bytes.IndexByte(chunk, '\n')
-			if newlineIndex == -1 {
-				break
-			}
-			processLine(chunk[0:newlineIndex], hm)
-			chunk = chunk[newlineIndex+1:]
-			if len(chunk) <= 1 {
-				break
-			}
-			count += 1
-			if count%10000000 == 0 {
-				pace := 100 * time.Since(lastTime) / 1000000000
-				fmt.Printf("Pace: %d, count: %d, hm size: %d\n", pace, count, hm.Size())
-				lastTime = time.Now()
-			}
-		}
+		println("offset:", offset)
+		hm := NewHashMap(10000)
+		wg.Add(1)
+		go processChunk(chunk, hm, &hms, &wg)
 		if err == io.EOF {
+			println("Done allocating chunks")
 			break
 		}
 		buffer = nil
 	}
+	println("Waiting for goroutines")
+	wg.Wait()
+	return &hms
+}
+
+func processChunk(chunk []byte, hm *HashMap, hms *[]*HashMap, wg *sync.WaitGroup) {
+	for {
+		newlineIndex := bytes.IndexByte(chunk, '\n')
+		if newlineIndex == -1 { break }
+		processLine(chunk[0:newlineIndex], hm)
+		chunk = chunk[newlineIndex+1:]
+		if len(chunk) <= 1 { break }
+	}
+	*hms = append(*hms, hm)
+	wg.Done()
 }
 
 func processLine(line []byte, hm *HashMap) {
@@ -111,12 +115,8 @@ func processLine(line []byte, hm *HashMap) {
 			count: 1,
 		})
 	} else {
-		if f < tempData.min {
-			tempData.min = f
-		}
-		if f > tempData.max {
-			tempData.max = f
-		}
+		if f < tempData.min { tempData.min = f }
+		if f > tempData.max { tempData.max = f }
 		tempData.total += f
 		tempData.count++
 	}
@@ -124,6 +124,7 @@ func processLine(line []byte, hm *HashMap) {
 
 func process(hm *HashMap) {
 	var data []*TempData
+	println("size", hm.Size())
 	for _, v := range hm.buckets {
 		if v != nil {
 			data = append(data, v.Value)
@@ -141,13 +142,33 @@ func process(hm *HashMap) {
 	fmt.Print("}")
 }
 
+func mergeMaps(hms *[]*HashMap) *HashMap {
+	mainMap := NewHashMap(10000)
+	for _, hm := range *hms {
+		for _, keyVal := range hm.buckets {
+			if keyVal == nil { continue }
+			hmTempData := keyVal.Value
+			td, ok := mainMap.Get(hmTempData.name)
+			if !ok {
+				mainMap.Set(hmTempData.name, hmTempData)
+			} else {
+				if hmTempData.min < td.min { td.min = hmTempData.min }
+				if hmTempData.max > td.max { td.max = hmTempData.max }
+				td.total += hmTempData.total
+				td.count += hmTempData.count
+			}
+		}
+	}
+	return mainMap
+}
+
 func attempt() {
 	file, err := os.Open(filepath)
 	if err != nil {
 		panic(err)
 	}
 	defer file.Close()
-	hm := NewHashMap(10000)
-	readTempDataReader(file, hm)
+	hms := readTempDataReader(file)
+	hm := mergeMaps(hms)
 	process(hm)
 }

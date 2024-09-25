@@ -70,7 +70,7 @@ func readTempDataReader(file *os.File, hm *HashMap) {
 		buffer := make([]byte, 1<<24)
 		_, err := file.ReadAt(buffer, offset)
 		lastNewlinePos := bytes.LastIndexByte(buffer, '\n')
-		chunk := buffer[0:lastNewlinePos+1]
+		chunk := buffer[0 : lastNewlinePos+1]
 		offset += int64(lastNewlinePos + 1)
 		for {
 			newlineIndex := bytes.IndexByte(chunk, '\n')
@@ -85,7 +85,7 @@ func readTempDataReader(file *os.File, hm *HashMap) {
 			count += 1
 			if count%10000000 == 0 {
 				pace := 100 * time.Since(lastTime) / 1000000000
-				fmt.Printf("Pace: %d, hm size: %d\n", pace, hm.Size())
+				fmt.Printf("Pace: %d, count: %d, hm size: %d\n", pace, count, hm.Size())
 				lastTime = time.Now()
 			}
 		}
@@ -123,7 +123,6 @@ func processLine(line []byte, hm *HashMap) {
 }
 
 func process(hm *HashMap) {
-//	startTime := time.Now()
 	var data []*TempData
 	for _, v := range hm.buckets {
 		if v != nil {
@@ -131,16 +130,15 @@ func process(hm *HashMap) {
 		}
 	}
 	sort.Slice(data, func(a, b int) bool { return bytes.Compare(data[a].name, data[b].name) < 0 })
-//	fmt.Print("{")
-//	for i, v := range data {
-//		if i > 0 {
-//			fmt.Print(", ")
-//		}
-//		avgTemp := float64(v.total/v.count) / 10.0
-//		fmt.Printf("%s=%.1f/%.1f/%.1f", v.name, float64(v.min)/10.0, avgTemp, float64(v.max)/10.0)
-//	}
-//	fmt.Print("}")
-//	fmt.Printf("process time: %s\n", time.Since(startTime))
+	fmt.Print("{")
+	for i, v := range data {
+		if i > 0 {
+			fmt.Print(", ")
+		}
+		avgTemp := float64(v.total/v.count) / 10.0
+		fmt.Printf("%s=%.1f/%.1f/%.1f", v.name, float64(v.min)/10.0, avgTemp, float64(v.max)/10.0)
+	}
+	fmt.Print("}")
 }
 
 func attempt() {

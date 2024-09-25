@@ -33,10 +33,7 @@ func (hm *HashMap) hash(key []byte) int {
 	if len(key) < 4 {
 		return int(binary.BigEndian.Uint16(key) % uint16(hm.bucketSize))
 	}
-	if len(key) < 8 {
-		return int(binary.BigEndian.Uint32(key) % uint32(hm.bucketSize))
-	}
-	return int(binary.BigEndian.Uint64(key[:8]) % uint64(hm.bucketSize))
+	return int(binary.BigEndian.Uint32(key) % uint32(hm.bucketSize))
 }
 
 // Set adds a key-value pair to the hashmap

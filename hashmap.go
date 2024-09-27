@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"encoding/binary"
 	"fmt"
 )
 
@@ -30,10 +29,14 @@ func NewHashMap(bucketSize int) *HashMap {
 
 // hash generates a hash for the given key
 func (hm *HashMap) hash(key []byte) int {
-	if len(key) < 4 {
-		return int(binary.BigEndian.Uint16(key) % uint16(hm.bucketSize))
+	var hash = 5383
+	for i := 0; i < len(key); i++ {
+		hash = ((hash << 5) + hash) + int(key[i])
 	}
-	return int(binary.BigEndian.Uint32(key) % uint32(hm.bucketSize))
+	if hash < 0 {
+		hash = -hash
+	}
+	return hash % len(hm.buckets)
 }
 
 // Set adds a key-value pair to the hashmap
@@ -61,22 +64,36 @@ func (hm *HashMap) Set(key []byte, value *TempData) {
 	}
 }
 
+var CollisionCities []string
+
+func Contains(cities []string, city string) bool {
+	for i := 0; i < len(cities); i++ {
+		if cities[i] == city {
+			return true
+		}
+	}
+	return false
+}
+
 // Get retrieves the value associated with the given key
 func (hm *HashMap) Get(key []byte) (*TempData, bool) {
 	index := hm.hash(key)
-	if hm.buckets[index] != nil && bytes.Equal(hm.buckets[index].Key, key) {
-		return hm.buckets[index].Value, true
+	if hm.buckets[index] == nil {
+		return nil, false
 	}
+	//	if bytes.Equal(hm.buckets[index].Key, key) {
+	return hm.buckets[index].Value, true
 	// Handle collision: search for the key
-	for i := (index + 1) % hm.bucketSize; i != index; i = (i + 1) % hm.bucketSize {
-		if hm.buckets[i] == nil {
-			break
-		}
-		if bytes.Equal(hm.buckets[i].Key, key) {
-			return hm.buckets[i].Value, true
-		}
-	}
-	return nil, false
+	//
+	//	for i := (index + 1) % hm.bucketSize; i != index; i = (i + 1) % hm.bucketSize {
+	//		if hm.buckets[i] == nil {
+	//			break
+	//		}
+	//		if bytes.Equal(hm.buckets[i].Key, key) {
+	//			return hm.buckets[i].Value, true
+	//		}
+	//	}
+	//	return nil, false
 }
 
 // Delete removes a key-value pair from the hashmap

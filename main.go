@@ -13,6 +13,14 @@ import (
 // const filepath = "../1brc/short_measurements.txt"
 const filepath = "../1brc/measurements.txt"
 
+func calculateCollisionOdds(sampleSize, bucketSize int) {
+	odds := float64(1)
+	for i := 0; i < sampleSize; i++ {
+		odds *= float64(bucketSize-i) / float64(bucketSize)
+	}
+	println(odds)
+}
+
 func main() {
 	f, err := os.Create("cpu_profile.prof")
 	if err != nil {
@@ -35,31 +43,31 @@ type TempData struct {
 }
 
 func parseTemp(s []byte) int {
-	tenths := 0
+	tenths := int(s[len(s)-1]) - 48
+	ones := int(s[len(s)-2]) - 48
+	tens := 0b0
+
 	isNegative := s[0] == '-'
-	i := 0
 	if isNegative {
-		i = 1
+		s = s[1:]
 	}
-	for ; i < len(s); i++ {
-		c := s[i]
-		if c == '.' {
-			continue
-		}
-		rawValue := int(c) - 48
-		tenths *= 10
-		tenths += rawValue
+	if len(s) > 3 {
+		tens = int(s[0]) - 48
 	}
 	if isNegative {
-		return -tenths
+		return -(tens*100 + ones*10 + tenths)
 	}
-	return tenths
+	return tens*100 + ones*10 + tenths
 }
 
-// Assumes ; is in slice
 func split(s []byte) ([]byte, []byte) {
-	i := bytes.IndexByte(s, ';')
-	return s[:i], s[i+1:]
+	if s[len(s)-4] == ';' {
+		return s[:len(s)-4], s[len(s)-3:]
+	}
+	if s[len(s)-5] == ';' {
+		return s[:len(s)-5], s[len(s)-4:]
+	}
+	return s[:len(s)-6], s[len(s)-5:]
 }
 
 func readTempDataReader(file *os.File, hm *HashMap) {
@@ -73,7 +81,7 @@ func readTempDataReader(file *os.File, hm *HashMap) {
 		chunk := buffer[0 : lastNewlinePos+1]
 		offset += int64(lastNewlinePos + 1)
 		for {
-			newlineIndex := bytes.IndexByte(chunk, '\n')
+			newlineIndex := bytes.IndexByte(chunk[6:], '\n') + 6
 			if newlineIndex == -1 {
 				break
 			}
@@ -147,7 +155,7 @@ func attempt() {
 		panic(err)
 	}
 	defer file.Close()
-	hm := NewHashMap(10000)
+	hm := NewHashMap(100000)
 	readTempDataReader(file, hm)
 	process(hm)
 }

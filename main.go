@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"io"
@@ -18,7 +19,69 @@ func calculateCollisionOdds(sampleSize, bucketSize int) {
 	for i := 0; i < sampleSize; i++ {
 		odds *= float64(bucketSize-i) / float64(bucketSize)
 	}
-	println(odds)
+	fmt.Println(odds)
+}
+
+func InitializeMap(hm *HashMap) {
+	file, _ := os.Open(filepath)
+	scanner := bufio.NewScanner(file)
+	cities := [][]byte{}
+	for scanner.Scan() {
+		b := scanner.Bytes()
+		city, _ := split(b)
+		cityName := make([]byte, len(city))
+		copy(cityName, city)
+		if !Contains(cities, cityName) {
+			cities = append(cities, cityName)
+		}
+		if len(cities) == 413 {
+			break
+		}
+	}
+	if len(cities) != 413 {
+		panic("Failed to find collisionless map")
+	}
+	for i := 0; i < len(cities); i++ {
+		hm.Set(cities[i], &TempData{
+			name:  cities[i],
+			max:   10000,
+			min:   -10000,
+			count: 0,
+			total: 0,
+		})
+	}
+}
+
+func search() int {
+	file, _ := os.Open("cities.txt")
+	scanner := bufio.NewScanner(file)
+	cities := [][]byte{}
+	for scanner.Scan() {
+		city := scanner.Bytes()
+		cities = append(cities, city)
+	}
+	for i := 12037; i < 50000; i++ {
+		hashes := []int{}
+		noCollisions := true
+		for _, city := range cities {
+			h := NewHashMap(i).hash(city)
+			if ContainsInt(hashes, h) {
+				noCollisions = false
+				break
+			} else {
+				hashes = append(hashes, h)
+			}
+		}
+		if noCollisions {
+			sort.Ints(hashes)
+			for _, h := range hashes {
+				fmt.Println(h)
+			}
+			fmt.Println("Ideal size:", i)
+			return i
+		}
+	}
+	return 0
 }
 
 func main() {
@@ -45,7 +108,7 @@ type TempData struct {
 func parseTemp(s []byte) int {
 	tenths := int(s[len(s)-1]) - 48
 	ones := int(s[len(s)-2]) - 48
-	tens := 0b0
+	tens := 0
 
 	isNegative := s[0] == '-'
 	if isNegative {
@@ -155,7 +218,10 @@ func attempt() {
 		panic(err)
 	}
 	defer file.Close()
-	hm := NewHashMap(100000)
+	s := search()
+	fmt.Println("S", s)
+	hm := NewHashMap(s)
+	InitializeMap(hm)
 	readTempDataReader(file, hm)
 	process(hm)
 }

@@ -52,7 +52,7 @@ func InitializeMap(hm *HashMap) {
 	}
 }
 
-func search() int {
+func getCitiesFromFile() [][]byte {
 	file, _ := os.Open("cities.txt")
 	scanner := bufio.NewScanner(file)
 	cities := [][]byte{}
@@ -60,6 +60,11 @@ func search() int {
 		city := scanner.Bytes()
 		cities = append(cities, city)
 	}
+	return cities
+}
+
+func minCollisionlessMapSize(cities [][]byte) int {
+	// Iterate through potential hashmap sizes
 	for i := 12037; i < 50000; i++ {
 		hashes := []int{}
 		noCollisions := true
@@ -73,11 +78,6 @@ func search() int {
 			}
 		}
 		if noCollisions {
-			sort.Ints(hashes)
-			for _, h := range hashes {
-				fmt.Println(h)
-			}
-			fmt.Println("Ideal size:", i)
 			return i
 		}
 	}
@@ -218,9 +218,7 @@ func attempt() {
 		panic(err)
 	}
 	defer file.Close()
-	s := search()
-	fmt.Println("S", s)
-	hm := NewHashMap(s)
+	hm := NewHashMap(minCollisionlessMapSize(getCitiesFromFile()))
 	InitializeMap(hm)
 	readTempDataReader(file, hm)
 	process(hm)

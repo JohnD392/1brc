@@ -22,24 +22,9 @@ func calculateCollisionOdds(sampleSize, bucketSize int) {
 	fmt.Println(odds)
 }
 
-func InitializeMap(hm *HashMap) {
-	file, _ := os.Open(filepath)
-	scanner := bufio.NewScanner(file)
-	cities := [][]byte{}
-	for scanner.Scan() {
-		b := scanner.Bytes()
-		city, _ := split(b)
-		cityName := make([]byte, len(city))
-		copy(cityName, city)
-		if !Contains(cities, cityName) {
-			cities = append(cities, cityName)
-		}
-		if len(cities) == 413 {
-			break
-		}
-	}
+func InitializeMap(hm *HashMap, cities [][]byte) {
 	if len(cities) != 413 {
-		panic("Failed to find collisionless map")
+		panic(fmt.Sprintf("Wrong number of cities. #: %d", len(cities)))
 	}
 	for i := 0; i < len(cities); i++ {
 		hm.Set(cities[i], &TempData{
@@ -218,8 +203,10 @@ func attempt() {
 		panic(err)
 	}
 	defer file.Close()
-	hm := NewHashMap(minCollisionlessMapSize(getCitiesFromFile()))
-	InitializeMap(hm)
+
+	cities := getCitiesFromFile()
+	hm := NewHashMap(minCollisionlessMapSize(cities))
+	InitializeMap(hm, cities)
 	readTempDataReader(file, hm)
 	process(hm)
 }

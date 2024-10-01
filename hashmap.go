@@ -67,8 +67,8 @@ func Contains(cities [][]byte, city []byte) bool {
 }
 
 // Get retrieves the value associated with the given key
-func (hm *HashMap) Get(key []byte) (*TempData, bool) {
-	return hm.buckets[hm.hash(key)].Value, true
+func (hm *HashMap) Get(key []byte) *TempData {
+	return hm.buckets[hm.hash(key)].Value
 }
 
 // Size returns the number of elements in the hashmap

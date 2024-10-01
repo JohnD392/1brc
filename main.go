@@ -50,7 +50,7 @@ func getCitiesFromFile() [][]byte {
 
 func minCollisionlessMapSize(cities [][]byte) int {
 	// Iterate through potential hashmap sizes
-	for i := 12037; i < 50000; i++ {
+	for i := 12000; i < 50000; i++ {
 		hashes := []int{}
 		noCollisions := true
 		for _, city := range cities {
@@ -155,27 +155,11 @@ func readTempDataReader(file *os.File, hm *HashMap) {
 func processLine(line []byte, hm *HashMap) {
 	name, temp := split(line)
 	f := parseTemp(temp)
-	tempData, ok := hm.Get(name)
-	if !ok {
-		nameCpy := make([]byte, len(name))
-		copy(nameCpy, name)
-		hm.Set(nameCpy, &TempData{
-			name:  nameCpy,
-			min:   f,
-			max:   f,
-			total: f,
-			count: 1,
-		})
-	} else {
-		if f < tempData.min {
-			tempData.min = f
-		}
-		if f > tempData.max {
-			tempData.max = f
-		}
-		tempData.total += f
-		tempData.count++
-	}
+	tempData := hm.Get(name)
+	tempData.max = max(tempData.max, f)
+	tempData.min = min(tempData.min, f)
+	tempData.total += f
+	tempData.count++
 }
 
 func process(hm *HashMap) {

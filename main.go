@@ -29,8 +29,8 @@ func InitializeMap(hm *HashMap, cities [][]byte) {
 	for i := 0; i < len(cities); i++ {
 		hm.Set(cities[i], &TempData{
 			name:  cities[i],
-			max:   10000,
-			min:   -10000,
+			max:   -10000,
+			min:   10000,
 			count: 0,
 			total: 0,
 		})
